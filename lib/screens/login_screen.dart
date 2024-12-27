@@ -3,7 +3,6 @@ import 'package:flutter/material.dart';
 import '../screens/register_screen.dart';
 import '../screens/home_screen.dart';
 import '../services/auth_service.dart';
-import '../services/token_service.dart';
 import '../services/session_manager.dart';
 
 class LoginScreen extends StatefulWidget {
@@ -38,55 +37,57 @@ class _LoginScreenState extends State<LoginScreen> {
   }
 
   Future<void> _handleLogin() async {
-    if (_formKey.currentState!.validate()) {
-      setState(() {
-        _isLoading = true;
-      });
-
-      try {
-        final authResponse = await AuthService.login(
-          _emailController.text,
-          _passwordController.text,
-        );
-
-        if (!mounted) return;
-
-        // Verificar la sesión después del login
-        final hasValidSession = await SessionManager.hasValidSession();
-        if (!hasValidSession) {
-          throw Exception('Error al iniciar sesión');
-        }
-
-        // Limpiar campos
-        _emailController.clear();
-        _passwordController.clear();
-
-        // Navegar al home
-        Navigator.of(context).pushAndRemoveUntil(
-          MaterialPageRoute(builder: (_) => const HomeScreen()),
-          (route) => false,
-        );
-      } catch (e) {
-        if (!mounted) return;
-
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text(e.toString().replaceAll('Exception: ', '')),
-            backgroundColor: Colors.red,
-            duration: const Duration(seconds: 3),
-          ),
-        );
-      } finally {
-        if (mounted) {
-          setState(() {
-            _isLoading = false;
-          });
-        }
-      }
-    } else {
+    if (!_formKey.currentState!.validate()) {
       setState(() {
         _autoValidate = true;
       });
+      return;
+    }
+
+    setState(() {
+      _isLoading = true;
+    });
+
+    try {
+      // Guardar el contexto antes de las operaciones asíncronas
+      final navigator = Navigator.of(context);
+
+      await AuthService.login(
+        _emailController.text,
+        _passwordController.text,
+      );
+
+      final hasValidSession = await SessionManager.hasValidSession();
+      if (!hasValidSession) {
+        throw Exception('Error al iniciar sesión');
+      }
+
+      if (!mounted) return;
+
+      _emailController.clear();
+      _passwordController.clear();
+
+      // Usar las referencias guardadas
+      navigator.pushAndRemoveUntil(
+        MaterialPageRoute(builder: (_) => const HomeScreen()),
+        (route) => false,
+      );
+    } catch (e) {
+      if (!mounted) return;
+
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(e.toString().replaceAll('Exception: ', '')),
+          backgroundColor: Colors.red,
+          duration: const Duration(seconds: 3),
+        ),
+      );
+    } finally {
+      if (mounted) {
+        setState(() {
+          _isLoading = false;
+        });
+      }
     }
   }
 

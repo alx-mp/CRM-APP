@@ -45,7 +45,7 @@ class TokenService {
         final userData = jsonDecode(userStr);
         return User.fromJson(userData);
       } catch (e) {
-        print('Error al deserializar usuario: $e');
+        // print('Error al deserializar usuario: $e');
         return null;
       }
     }

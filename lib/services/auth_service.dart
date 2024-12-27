@@ -52,7 +52,7 @@ class AuthService {
       await SessionManager.saveSession(authResponse);
       return authResponse;
     } catch (e) {
-      print('Error durante el login: $e');
+      // print('Error durante el login: $e');
       rethrow;
     }
   }

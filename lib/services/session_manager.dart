@@ -20,7 +20,7 @@ class SessionManager {
       final expiration = DateTime.parse(expirationStr);
       return expiration.isAfter(DateTime.now());
     } catch (e) {
-      print('Error verificando sesión: $e');
+      // print('Error verificando sesión: $e');
       return false;
     }
   }
@@ -46,7 +46,7 @@ class SessionManager {
               _tokenExpirationKey, expiration.toIso8601String());
         }
       } catch (e) {
-        print('Error decodificando token: $e');
+        // print('Error decodificando token: $e');
       }
     }
   }

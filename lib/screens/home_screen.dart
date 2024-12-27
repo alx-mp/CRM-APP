@@ -34,7 +34,7 @@ class _HomeScreenState extends State<HomeScreen> {
         _redirectToLogin();
       }
     } catch (e) {
-      print('Error cargando datos del usuario: $e');
+      // print('Error cargando datos del usuario: $e');
       _redirectToLogin();
     }
   }

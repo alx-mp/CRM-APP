@@ -4,8 +4,6 @@ import 'package:flutter/services.dart';
 import '../utils/ecuador_id_validator.dart';
 import '../services/auth_service.dart';
 import '../models/register_request.dart';
-import '../services/session_manager.dart';
-import 'home_screen.dart';
 
 class RegisterScreen extends StatefulWidget {
   const RegisterScreen({super.key});
@@ -271,7 +269,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
               color: Theme.of(context).scaffoldBackgroundColor,
               boxShadow: [
                 BoxShadow(
-                  color: Colors.grey.withOpacity(0.1),
+                  color: Colors.grey.withValues(alpha: 0.1),
                   spreadRadius: 1,
                   blurRadius: 5,
                   offset: const Offset(0, -3),
