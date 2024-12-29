@@ -6,18 +6,15 @@ import 'screens/account_screen.dart';
 import 'screens/cart_screen.dart';
 import 'screens/home_screen.dart';
 import 'screens/login_screen.dart';
-import 'screens/orders_screen.dart'; // Importar la pantalla de órdenes
+import 'screens/orders_screen.dart';
 import 'screens/product_catalog.dart';
 import 'screens/product_detail.dart';
 import 'widgets/auth_wrapper.dart';
+import 'models/product.dart'; // Importar el modelo Product
 
 Future<void> main() async {
-  // Asegurarse de que los widgets están inicializados
   WidgetsFlutterBinding.ensureInitialized();
-
-  // Cargar las variables de entorno
   await dotenv.load(fileName: ".env");
-
   runApp(const MyApp());
 }
 
@@ -30,30 +27,43 @@ class MyApp extends StatelessWidget {
       title: 'MStore',
       debugShowCheckedModeBanner: false,
       theme: CustomTheme.darkTheme(),
-      // Usar AuthWrapper como home
       home: const AuthWrapper(),
-      // Definir rutas para navegación
       routes: {
         '/login': (context) => const LoginScreen(),
         '/home': (context) => const HomeScreen(),
         '/cart': (context) => const CartScreen(),
-        '/orders': (context) => const OrdersScreen(), // Agregar ruta de órdenes
+        '/orders': (context) => const OrdersScreen(),
         '/account': (context) => const AccountScreen(),
-        '/product-catalog': (context) {
-          final args = ModalRoute.of(context)!.settings.arguments
-              as Map<String, dynamic>;
-          return ProductCatalogScreen(category: args['category']);
-        },
-        '/product-detail': (context) {
-          final args = ModalRoute.of(context)!.settings.arguments
-              as Map<String, dynamic>;
-          return ProductDetailScreen(
-            name: args['name'],
-            price: args['price'],
-            isAvailable: args['isAvailable'],
-            icon: args['icon'],
+      },
+      // Usar onGenerateRoute para rutas con parámetros dinámicos
+      onGenerateRoute: (settings) {
+        if (settings.name == '/product-catalog') {
+          final args = settings.arguments as Map<String, dynamic>;
+          return MaterialPageRoute(
+            builder: (context) => ProductCatalogScreen(
+              category: args['category'] as String,
+              products: args['products'] as List<Product>,
+            ),
           );
-        },
+        }
+
+        if (settings.name == '/product-detail') {
+          final args = settings.arguments as Map<String, dynamic>;
+          return MaterialPageRoute(
+            builder: (context) => ProductDetailScreen(
+              name: args['name'] as String,
+              price: args['price'] as double,
+              isAvailable: args['isAvailable'] as bool,
+              description: args['description'] as String,
+              imageUrl: args['imageUrl'] as String,
+            ),
+          );
+        }
+
+        // Ruta por defecto o manejo de error
+        return MaterialPageRoute(
+          builder: (context) => const HomeScreen(),
+        );
       },
     );
   }
