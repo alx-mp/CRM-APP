@@ -1,7 +1,8 @@
 // lib/screens/home_screen.dart
 import 'package:flutter/material.dart';
-import '../services/token_service.dart';
+import '../services/profile_service.dart';
 import '../widgets/bottom_navigation.dart';
+import '../widgets/profile_image.dart';
 import 'product_catalog.dart';
 import 'product_detail.dart';
 
@@ -29,14 +30,17 @@ class _HomeScreenState extends State<HomeScreen> {
     super.dispose();
   }
 
+  String userId = '';
+
   Future<void> _loadUserData() async {
     try {
-      final user = await TokenService.getUser();
+      final profileData = await ProfileService.getUserProfile();
       if (!mounted) return;
 
-      if (user != null) {
+      if (profileData != null) {
         setState(() {
-          userName = user.firstName;
+          userId = profileData['id'];
+          userName = profileData['first_name'];
           _isLoading = false;
         });
       } else {
@@ -137,9 +141,10 @@ class _HomeScreenState extends State<HomeScreen> {
             ),
           ],
         ),
-        const CircleAvatar(
+        ProfileImage(
           radius: 20,
-          backgroundColor: Colors.blue,
+          userId: userId,
+          onTap: null, // Para deshabilitar la edición en el HomeScreen
         ),
       ],
     );

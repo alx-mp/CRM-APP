@@ -41,6 +41,9 @@ dependencies:
   path_provider: ^2.1.5
   open_file: ^3.5.10
   app_settings: ^5.1.1
+  image_picker: ^1.1.2
+  http_parser: ^4.1.1
+  path: ^1.9.0
 
 dev_dependencies:
   flutter_test:

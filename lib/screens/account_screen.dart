@@ -1,8 +1,9 @@
 // lib/screens/account_screen.dart
 import 'package:flutter/material.dart';
 import '../services/auth_service.dart';
-import '../services/token_service.dart';
+import '../services/profile_service.dart';
 import '../widgets/bottom_navigation.dart';
+import '../widgets/profile_image.dart';
 
 class AccountScreen extends StatefulWidget {
   const AccountScreen({super.key});
@@ -15,6 +16,8 @@ class _AccountScreenState extends State<AccountScreen> {
   String userName = '';
   String userEmail = '';
   bool _isLoading = true;
+  bool _isImageLoading = false; // Nuevo estado para la carga de imagen
+  String userId = '';
 
   @override
   void initState() {
@@ -24,19 +27,23 @@ class _AccountScreenState extends State<AccountScreen> {
 
   Future<void> _loadUserData() async {
     try {
-      final user = await TokenService.getUser();
+      final profileData = await ProfileService.getUserProfile();
+      //print('Profile Data: $profileData');
+
       if (!mounted) return;
 
-      if (user != null) {
+      if (profileData != null) {
         setState(() {
-          userName = user.firstName;
-          userEmail = user.email;
+          userId = profileData['id'];
+          userName = profileData['first_name'];
+          userEmail = profileData['email'];
           _isLoading = false;
         });
       } else {
         _redirectToLogin();
       }
     } catch (e) {
+      //print('Error loading user data: $e');
       _redirectToLogin();
     }
   }
@@ -80,9 +87,27 @@ class _AccountScreenState extends State<AccountScreen> {
                       ),
                     ),
                     const SizedBox(height: 32),
-                    const CircleAvatar(
-                      radius: 50,
-                      backgroundColor: Colors.blue,
+                    Stack(
+                      children: [
+                        ProfileImage(
+                          radius: 50,
+                          userId: userId,
+                          onLoadingChanged: (isLoading) {
+                            setState(() {
+                              _isImageLoading =
+                                  isLoading; // Usar el nuevo estado
+                            });
+                          },
+                          onTap: () {}, // Enable image picking
+                        ),
+                        // Mostrar el indicador de carga solo si _isImageLoading es true
+                        if (_isImageLoading)
+                          const Positioned.fill(
+                            child: Center(
+                              child: CircularProgressIndicator(),
+                            ),
+                          ),
+                      ],
                     ),
                     const SizedBox(height: 16),
                     Text(
