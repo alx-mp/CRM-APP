@@ -1,23 +1,121 @@
+// lib/screens/product_detail.dart
 import 'package:flutter/material.dart';
+import 'package:provider/provider.dart';
+import '../providers/cart_provider.dart';
+import '../models/product.dart';
 
-class ProductDetailScreen extends StatelessWidget {
-  final String name;
-  final double price;
-  final bool isAvailable;
-  final String description;
-  final String imageUrl;
+class ProductDetailScreen extends StatefulWidget {
+  final Product product;
 
   const ProductDetailScreen({
     super.key,
-    required this.name,
-    required this.price,
-    required this.isAvailable,
-    required this.description,
-    required this.imageUrl,
+    required this.product,
   });
 
   @override
+  State<ProductDetailScreen> createState() => _ProductDetailScreenState();
+}
+
+class _ProductDetailScreenState extends State<ProductDetailScreen> {
+  int _quantity = 1;
+  bool _hasShownStockWarning = false;
+
+  void _showIvaInfo() {
+    final ivaAmount =
+        widget.product.hasIva ? (widget.product.price * 0.12) : 0.0;
+
+    showDialog(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Text('Información de IVA'),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text('Precio base: \$${widget.product.price.toStringAsFixed(2)}'),
+            if (widget.product.hasIva) ...[
+              Text('IVA (12%): \$${ivaAmount.toStringAsFixed(2)}'),
+              Text(
+                'Total con IVA: \$${(widget.product.price + ivaAmount).toStringAsFixed(2)}',
+              ),
+            ] else
+              const Text('Este producto no incluye IVA'),
+          ],
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(ctx).pop(),
+            child: const Text('Cerrar'),
+          ),
+        ],
+      ),
+    );
+  }
+
+  void _updateQuantity(int newQuantity) {
+    if (newQuantity > widget.product.stockAvailable) {
+      if (!_hasShownStockWarning) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(
+              'Stock máximo disponible: ${widget.product.stockAvailable}',
+            ),
+            duration: const Duration(seconds: 2),
+          ),
+        );
+        setState(() {
+          _hasShownStockWarning = true;
+        });
+      }
+      return;
+    }
+
+    if (newQuantity < 1) return;
+
+    setState(() {
+      _quantity = newQuantity;
+      _hasShownStockWarning = false;
+    });
+  }
+
+  Future<void> _addToCart() async {
+    if (_quantity > widget.product.stockAvailable) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('La cantidad seleccionada excede el stock disponible'),
+          backgroundColor: Colors.red,
+        ),
+      );
+      return;
+    }
+
+    try {
+      await Provider.of<CartProvider>(context, listen: false)
+          .addItem(widget.product, _quantity);
+
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Producto agregado al carrito exitosamente'),
+          backgroundColor: Colors.green,
+        ),
+      );
+      Navigator.of(context).pop();
+    } catch (error) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(error.toString()),
+          backgroundColor: Colors.red,
+        ),
+      );
+    }
+  }
+
+  @override
   Widget build(BuildContext context) {
+    final isAvailable = widget.product.stockAvailable > 0;
+
     return Scaffold(
       appBar: AppBar(
         leading: IconButton(
@@ -27,30 +125,9 @@ class ProductDetailScreen extends StatelessWidget {
         ),
         actions: [
           IconButton(
-            icon: const Icon(Icons.favorite_border),
-            onPressed: () {
-              // Implementar favoritos
-              ScaffoldMessenger.of(context).showSnackBar(
-                const SnackBar(
-                  content: Text('Función de favoritos próximamente'),
-                  duration: Duration(seconds: 2),
-                ),
-              );
-            },
-            tooltip: 'Añadir a favoritos',
-          ),
-          IconButton(
-            icon: const Icon(Icons.share),
-            onPressed: () {
-              // Implementar compartir
-              ScaffoldMessenger.of(context).showSnackBar(
-                const SnackBar(
-                  content: Text('Función de compartir próximamente'),
-                  duration: Duration(seconds: 2),
-                ),
-              );
-            },
-            tooltip: 'Compartir producto',
+            icon: const Icon(Icons.info_outline),
+            onPressed: _showIvaInfo,
+            tooltip: 'Información de IVA',
           ),
         ],
       ),
@@ -59,31 +136,20 @@ class ProductDetailScreen extends StatelessWidget {
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             Hero(
-              tag: 'product-$name',
+              tag: 'product-${widget.product.id}',
               child: Container(
                 height: 300,
                 width: double.infinity,
                 color: Colors.grey[200],
-                child: imageUrl.isNotEmpty
+                child: widget.product.imageUrl.isNotEmpty
                     ? Image.network(
-                        imageUrl,
+                        widget.product.imageUrl,
                         fit: BoxFit.cover,
                         errorBuilder: (context, error, stackTrace) {
                           return const Icon(
                             Icons.image_not_supported,
                             size: 150,
                             color: Colors.grey,
-                          );
-                        },
-                        loadingBuilder: (context, child, loadingProgress) {
-                          if (loadingProgress == null) return child;
-                          return Center(
-                            child: CircularProgressIndicator(
-                              value: loadingProgress.expectedTotalBytes != null
-                                  ? loadingProgress.cumulativeBytesLoaded /
-                                      loadingProgress.expectedTotalBytes!
-                                  : null,
-                            ),
                           );
                         },
                       )
@@ -100,7 +166,7 @@ class ProductDetailScreen extends StatelessWidget {
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   Text(
-                    name,
+                    widget.product.name,
                     style: const TextStyle(
                       fontSize: 28,
                       fontWeight: FontWeight.bold,
@@ -110,13 +176,21 @@ class ProductDetailScreen extends StatelessWidget {
                   Row(
                     children: [
                       Text(
-                        '\$${price.toStringAsFixed(2)}',
+                        '\$${widget.product.price.toStringAsFixed(2)}',
                         style: const TextStyle(
                           fontSize: 24,
                           fontWeight: FontWeight.bold,
                           color: Colors.blue,
                         ),
                       ),
+                      if (widget.product.hasIva)
+                        Text(
+                          ' + IVA',
+                          style: TextStyle(
+                            fontSize: 16,
+                            color: Colors.grey[600],
+                          ),
+                        ),
                       const SizedBox(width: 10),
                       Container(
                         padding: const EdgeInsets.symmetric(
@@ -128,29 +202,65 @@ class ProductDetailScreen extends StatelessWidget {
                           borderRadius: BorderRadius.circular(8),
                         ),
                         child: Text(
-                          isAvailable ? 'Disponible' : 'No disponible',
+                          isAvailable
+                              ? 'Stock: ${widget.product.stockAvailable}'
+                              : 'Agotado',
                           style: const TextStyle(color: Colors.white),
                         ),
                       ),
                     ],
                   ),
                   const SizedBox(height: 20),
-                  const Text(
-                    'Detalles del producto',
-                    style: TextStyle(
-                      fontSize: 20,
-                      fontWeight: FontWeight.bold,
-                    ),
-                  ),
-                  const SizedBox(height: 10),
                   Text(
-                    description,
-                    style: const TextStyle(fontSize: 16, color: Colors.grey),
+                    widget.product.description,
+                    style: const TextStyle(fontSize: 16),
                   ),
-                  const SizedBox(height: 20),
                   if (isAvailable) ...[
-                    _buildQuantitySelector(),
                     const SizedBox(height: 20),
+                    Row(
+                      children: [
+                        const Text(
+                          'Cantidad:',
+                          style: TextStyle(
+                            fontSize: 16,
+                            fontWeight: FontWeight.bold,
+                          ),
+                        ),
+                        const SizedBox(width: 16),
+                        Container(
+                          decoration: BoxDecoration(
+                            border: Border.all(color: Colors.grey[300]!),
+                            borderRadius: BorderRadius.circular(8),
+                          ),
+                          child: Row(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              IconButton(
+                                icon: const Icon(Icons.remove),
+                                onPressed: _quantity > 1
+                                    ? () => _updateQuantity(_quantity - 1)
+                                    : null,
+                              ),
+                              SizedBox(
+                                width: 40,
+                                child: Text(
+                                  _quantity.toString(),
+                                  textAlign: TextAlign.center,
+                                  style: const TextStyle(fontSize: 16),
+                                ),
+                              ),
+                              IconButton(
+                                icon: const Icon(Icons.add),
+                                onPressed:
+                                    _quantity < widget.product.stockAvailable
+                                        ? () => _updateQuantity(_quantity + 1)
+                                        : null,
+                              ),
+                            ],
+                          ),
+                        ),
+                      ],
+                    ),
                   ],
                 ],
               ),
@@ -163,91 +273,40 @@ class ProductDetailScreen extends StatelessWidget {
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            Row(
-              children: [
-                Expanded(
-                  child: ElevatedButton.icon(
-                    onPressed: isAvailable ? () {} : null,
-                    style: ElevatedButton.styleFrom(
-                      padding: const EdgeInsets.symmetric(vertical: 15),
-                      backgroundColor: Colors.blue,
-                      shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(8),
+            Consumer<CartProvider>(
+              builder: (ctx, cart, _) {
+                final isInCart = cart.isProductInCart(widget.product.id);
+
+                return Row(
+                  children: [
+                    Expanded(
+                      child: ElevatedButton(
+                        onPressed: isInCart || !isAvailable ? null : _addToCart,
+                        style: ElevatedButton.styleFrom(
+                          padding: const EdgeInsets.symmetric(vertical: 15),
+                          backgroundColor: Colors.blue,
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(8),
+                          ),
+                        ),
+                        child: Text(
+                          isInCart
+                              ? 'Producto en Carrito'
+                              : 'Agregar al Carrito',
+                          style: const TextStyle(
+                            fontSize: 18,
+                            color: Colors.white,
+                          ),
+                        ),
                       ),
                     ),
-                    icon: const Icon(
-                      Icons.shopping_cart,
-                      color: Colors.white,
-                    ),
-                    label: const Text(
-                      'Agregar al carrito',
-                      style: TextStyle(
-                        fontSize: 18,
-                        color: Colors.white,
-                      ),
-                    ),
-                  ),
-                ),
-              ],
+                  ],
+                );
+              },
             ),
-            if (!isAvailable)
-              Padding(
-                padding: const EdgeInsets.only(top: 8.0),
-                child: Text(
-                  'Este producto no está disponible actualmente',
-                  style: TextStyle(
-                    color: Colors.red[400],
-                    fontSize: 12,
-                  ),
-                ),
-              ),
           ],
         ),
       ),
-    );
-  }
-
-  Widget _buildQuantitySelector() {
-    return Row(
-      children: [
-        const Text(
-          'Cantidad:',
-          style: TextStyle(
-            fontSize: 16,
-            fontWeight: FontWeight.bold,
-          ),
-        ),
-        const SizedBox(width: 16),
-        Container(
-          decoration: BoxDecoration(
-            border: Border.all(color: Colors.grey[300]!),
-            borderRadius: BorderRadius.circular(8),
-          ),
-          child: Row(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              IconButton(
-                icon: const Icon(Icons.remove),
-                onPressed: () {},
-                padding: const EdgeInsets.all(4),
-              ),
-              const SizedBox(
-                width: 40,
-                child: Text(
-                  '1',
-                  textAlign: TextAlign.center,
-                  style: TextStyle(fontSize: 16),
-                ),
-              ),
-              IconButton(
-                icon: const Icon(Icons.add),
-                onPressed: () {},
-                padding: const EdgeInsets.all(4),
-              ),
-            ],
-          ),
-        ),
-      ],
     );
   }
 }

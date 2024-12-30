@@ -150,10 +150,12 @@ class _ProductCatalogScreenState extends State<ProductCatalogScreen> {
       context,
       '/product-detail',
       arguments: {
+        'id': product.id,
         'name': product.name,
-        'price': product.price,
-        'isAvailable': product.stockAvailable > 0,
         'description': product.description,
+        'price': product.price,
+        'hasIva': product.hasIva,
+        'stockAvailable': product.stockAvailable,
         'imageUrl': product.imageUrl,
       },
     );

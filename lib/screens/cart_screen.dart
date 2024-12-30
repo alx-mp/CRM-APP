@@ -1,8 +1,8 @@
 // lib/screens/cart_screen.dart
 import 'package:flutter/material.dart';
+import 'package:provider/provider.dart';
+import '../providers/cart_provider.dart';
 import '../widgets/bottom_navigation.dart';
-import '../services/pdf_service.dart';
-import '../models/order.dart';
 
 class CartScreen extends StatefulWidget {
   const CartScreen({super.key});
@@ -12,59 +12,19 @@ class CartScreen extends StatefulWidget {
 }
 
 class _CartScreenState extends State<CartScreen> {
-  bool showOrders = false;
-  List<Order> orders = [];
+  final Map<int, bool> _hasShownStockWarning = {};
 
-  Future<void> _handleCheckout() async {
-    try {
-      // Add current cart to orders
-      final newOrder = Order(
-        id: DateTime.now().toString(),
-        items: [
-          OrderItem('MacBook Air 13" M1', 999.0, 1),
-          OrderItem('iPad (10th Gen)', 800.0, 1),
-          OrderItem('iPhone 14 Pro Max', 999.0, 1),
-        ],
-        total: 3266.0,
-        date: DateTime.now(),
-      );
-
-      setState(() {
-        orders.add(newOrder);
-      });
-
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Order completed successfully!')),
-      );
-    } catch (e) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('Error processing order'),
-          backgroundColor: Colors.red,
-        ),
-      );
-    }
-  }
-
-  Future<void> _generateInvoice(Order order) async {
-    try {
-      final filePath = await PdfService.generateInvoice(order, context);
-      if (!mounted) return;
+  void _showStockWarning(BuildContext context, int productId, int maxStock) {
+    if (!_hasShownStockWarning[productId]!) {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
-            content: Text(
-                'Invoice saved to Downloads: ${filePath.split('/').last}')),
+          content: Text('Stock máximo disponible: $maxStock'),
+          duration: const Duration(seconds: 2),
+        ),
       );
-    } catch (e) {
-      if (!mounted) return;
-      if (e.toString() != 'Exception: Storage permission required') {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text('Error generating invoice: $e'),
-            backgroundColor: Colors.red,
-          ),
-        );
-      }
+      setState(() {
+        _hasShownStockWarning[productId] = true;
+      });
     }
   }
 
@@ -72,186 +32,261 @@ class _CartScreenState extends State<CartScreen> {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: Text(showOrders ? 'My Orders' : 'Order Details'),
-        actions: [
-          IconButton(
-            icon: Icon(showOrders ? Icons.shopping_cart : Icons.receipt_long),
-            onPressed: () => setState(() => showOrders = !showOrders),
-          ),
-        ],
+        title: const Text('Carrito de Compras'),
       ),
-      body: Padding(
-        padding: const EdgeInsets.all(16.0),
-        child: showOrders ? _buildOrdersList() : _buildCart(),
-      ),
-    );
-  }
+      body: Consumer<CartProvider>(
+        builder: (ctx, cart, child) {
+          if (cart.items.isEmpty) {
+            return const Center(
+              child: Text('Tu carrito está vacío'),
+            );
+          }
 
-  Widget _buildOrdersList() {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        const Text(
-          'Orders History',
-          style: TextStyle(
-            fontSize: 24,
-            fontWeight: FontWeight.bold,
-          ),
-        ),
-        const SizedBox(height: 16),
-        Expanded(
-          child: orders.isEmpty
-              ? const Center(child: Text('No orders yet'))
-              : ListView.builder(
-                  itemCount: orders.length,
-                  itemBuilder: (context, index) {
-                    final order = orders[index];
+          // Inicializar el mapa de advertencias
+          for (var item in cart.items.values) {
+            _hasShownStockWarning.putIfAbsent(item.product.id, () => false);
+          }
+
+          return Column(
+            children: [
+              Expanded(
+                child: ListView.builder(
+                  padding: const EdgeInsets.all(16),
+                  itemCount: cart.items.length,
+                  itemBuilder: (ctx, i) {
+                    final item = cart.items.values.toList()[i];
                     return Card(
-                      child: ListTile(
-                        title: Text('Order #${order.id.substring(0, 8)}'),
-                        subtitle: Text(
-                          'Date: ${order.date.toString().substring(0, 16)}\n'
-                          'Total: \$${order.total}',
-                        ),
-                        trailing: IconButton(
-                          icon: const Icon(Icons.download),
-                          onPressed: () => _generateInvoice(order),
+                      margin: const EdgeInsets.only(bottom: 16),
+                      child: Padding(
+                        padding: const EdgeInsets.all(16),
+                        child: Row(
+                          children: [
+                            SizedBox(
+                              width: 80,
+                              height: 80,
+                              child: Image.network(
+                                item.product.imageUrl,
+                                fit: BoxFit.cover,
+                                errorBuilder: (context, error, stackTrace) {
+                                  return const Icon(
+                                    Icons.image_not_supported,
+                                    size: 50,
+                                  );
+                                },
+                              ),
+                            ),
+                            const SizedBox(width: 16),
+                            Expanded(
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  Text(
+                                    item.product.name,
+                                    style: const TextStyle(
+                                      fontSize: 16,
+                                      fontWeight: FontWeight.bold,
+                                    ),
+                                  ),
+                                  const SizedBox(height: 4),
+                                  Text(
+                                    '\$${item.product.price.toStringAsFixed(2)}',
+                                    style: const TextStyle(
+                                      fontSize: 14,
+                                      color: Colors.blue,
+                                    ),
+                                  ),
+                                  if (item.product.hasIva)
+                                    Text(
+                                      'IVA: \$${(item.product.price * 0.15).toStringAsFixed(2)}',
+                                      style: TextStyle(
+                                        fontSize: 12,
+                                        color: Colors.grey[600],
+                                      ),
+                                    ),
+                                ],
+                              ),
+                            ),
+                            Column(
+                              children: [
+                                Row(
+                                  children: [
+                                    IconButton(
+                                      icon: const Icon(Icons.remove),
+                                      onPressed: () async {
+                                        try {
+                                          await cart.updateQuantity(
+                                            item.product.id,
+                                            item.quantity - 1,
+                                          );
+                                          setState(() {
+                                            _hasShownStockWarning[
+                                                item.product.id] = false;
+                                          });
+                                        } catch (e) {
+                                          if (!context.mounted) return;
+                                          ScaffoldMessenger.of(context)
+                                              .showSnackBar(
+                                            SnackBar(
+                                              content: Text(e.toString()),
+                                              backgroundColor: Colors.red,
+                                            ),
+                                          );
+                                        }
+                                      },
+                                    ),
+                                    Text(
+                                      item.quantity.toString(),
+                                      style: const TextStyle(
+                                        fontSize: 16,
+                                        fontWeight: FontWeight.bold,
+                                      ),
+                                    ),
+                                    IconButton(
+                                      icon: const Icon(Icons.add),
+                                      onPressed: () async {
+                                        if (item.quantity >=
+                                            item.product.stockAvailable) {
+                                          _showStockWarning(
+                                            context,
+                                            item.product.id,
+                                            item.product.stockAvailable,
+                                          );
+                                          return;
+                                        }
+                                        try {
+                                          await cart.updateQuantity(
+                                            item.product.id,
+                                            item.quantity + 1,
+                                          );
+                                          setState(() {
+                                            _hasShownStockWarning[
+                                                item.product.id] = false;
+                                          });
+                                        } catch (e) {
+                                          if (!context.mounted) return;
+                                          ScaffoldMessenger.of(context)
+                                              .showSnackBar(
+                                            SnackBar(
+                                              content: Text(e.toString()),
+                                              backgroundColor: Colors.red,
+                                            ),
+                                          );
+                                        }
+                                      },
+                                    ),
+                                  ],
+                                ),
+                                IconButton(
+                                  icon: const Icon(Icons.delete_outline),
+                                  onPressed: () {
+                                    cart.removeItem(item.product.id);
+                                    setState(() {
+                                      _hasShownStockWarning
+                                          .remove(item.product.id);
+                                    });
+                                  },
+                                ),
+                              ],
+                            ),
+                          ],
                         ),
                       ),
                     );
                   },
                 ),
-        ),
-        const SizedBox(height: 16),
-        const BottomNavigation(currentIndex: 1),
-      ],
-    );
-  }
-
-  Widget _buildCart() {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        const Text(
-          'My Cart',
-          style: TextStyle(
-            fontSize: 24,
-            fontWeight: FontWeight.bold,
-          ),
-        ),
-        Expanded(
-          child: ListView(
-            children: [
-              _buildCartItem('MacBook Air 13" M1', 999.0),
-              _buildCartItem('iPad (10th Gen)', 800.0),
-              _buildCartItem('iPhone 14 Pro Max', 999.0),
-            ],
-          ),
-        ),
-        _buildOrderSummary(),
-        const SizedBox(height: 16),
-        SizedBox(
-          width: double.infinity,
-          child: ElevatedButton(
-            onPressed: _handleCheckout,
-            style: ElevatedButton.styleFrom(
-              padding: const EdgeInsets.all(16),
-            ),
-            child: const Text('Checkout (\$3266.0)'),
-          ),
-        ),
-        const SizedBox(height: 16),
-        const BottomNavigation(currentIndex: 1),
-      ],
-    );
-  }
-
-  Widget _buildCartItem(String name, double price) {
-    return Card(
-      margin: const EdgeInsets.symmetric(vertical: 8),
-      child: Padding(
-        padding: const EdgeInsets.all(16),
-        child: Row(
-          children: [
-            const Icon(Icons.devices, size: 48),
-            const SizedBox(width: 16),
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    name,
-                    style: const TextStyle(
-                      fontSize: 16,
-                      fontWeight: FontWeight.bold,
-                    ),
-                  ),
-                  Text(
-                    '\$$price',
-                    style: const TextStyle(
-                      fontSize: 18,
-                      fontWeight: FontWeight.bold,
-                    ),
-                  ),
-                ],
               ),
-            ),
-            Row(
-              children: [
-                IconButton(
-                  icon: const Icon(Icons.remove),
-                  onPressed: () {},
+              Container(
+                padding: const EdgeInsets.all(16),
+                decoration: BoxDecoration(
+                  color: Theme.of(context).cardColor,
+                  boxShadow: [
+                    BoxShadow(
+                      color: Colors.black.withValues(alpha: 0.05),
+                      blurRadius: 10,
+                    ),
+                  ],
                 ),
-                const Text('1'),
-                IconButton(
-                  icon: const Icon(Icons.add),
-                  onPressed: () {},
+                child: Column(
+                  children: [
+                    _buildSummaryRow('Subtotal', cart.subtotal),
+                    const SizedBox(height: 8),
+                    _buildSummaryRow('IVA (15%)', cart.totalIva),
+                    const Divider(height: 24),
+                    _buildSummaryRow('Total', cart.totalAmount, isTotal: true),
+                    const SizedBox(height: 16),
+                    SizedBox(
+                      width: double.infinity,
+                      child: ElevatedButton(
+                        onPressed: cart.items.isEmpty
+                            ? null
+                            : () async {
+                                try {
+                                  await cart.checkout();
+                                  if (!context.mounted) return;
+                                  ScaffoldMessenger.of(context).showSnackBar(
+                                    const SnackBar(
+                                      content: Text(
+                                          '¡Orden completada exitosamente!'),
+                                      backgroundColor: Colors.green,
+                                    ),
+                                  );
+                                } catch (e) {
+                                  if (!context.mounted) return;
+                                  ScaffoldMessenger.of(context).showSnackBar(
+                                    SnackBar(
+                                      content: Text(e.toString()),
+                                      backgroundColor: Colors.red,
+                                    ),
+                                  );
+                                }
+                              },
+                        style: ElevatedButton.styleFrom(
+                          padding: const EdgeInsets.symmetric(vertical: 16),
+                          backgroundColor: Colors.blue,
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(8),
+                          ),
+                        ),
+                        child: const Text(
+                          'Finalizar Compra',
+                          style: TextStyle(
+                            fontSize: 18,
+                            color: Colors.white,
+                          ),
+                        ),
+                      ),
+                    ),
+                  ],
                 ),
-              ],
-            ),
-            IconButton(
-              icon: const Icon(Icons.delete_outline),
-              onPressed: () {},
-            ),
-          ],
-        ),
+              ),
+            ],
+          );
+        },
       ),
+      bottomNavigationBar: const BottomNavigation(currentIndex: 1),
     );
   }
 
-  Widget _buildOrderSummary() {
-    return Column(
+  Widget _buildSummaryRow(String label, double amount, {bool isTotal = false}) {
+    return Row(
+      mainAxisAlignment: MainAxisAlignment.spaceBetween,
       children: [
-        const Divider(),
-        _buildSummaryRow('Sub Total', '\$3146.0'),
-        _buildSummaryRow('Shipping', '\$120.0'),
-        _buildSummaryRow('Total', '\$3266.0', isTotal: true),
+        Text(
+          label,
+          style: TextStyle(
+            fontSize: isTotal ? 20 : 16,
+            fontWeight: isTotal ? FontWeight.bold : FontWeight.normal,
+          ),
+        ),
+        Text(
+          '\$${amount.toStringAsFixed(2)}',
+          style: TextStyle(
+            fontSize: isTotal ? 20 : 16,
+            fontWeight: isTotal ? FontWeight.bold : FontWeight.normal,
+            color: isTotal ? Colors.blue : null,
+          ),
+        ),
       ],
-    );
-  }
-
-  Widget _buildSummaryRow(String label, String amount, {bool isTotal = false}) {
-    return Padding(
-      padding: const EdgeInsets.symmetric(vertical: 8),
-      child: Row(
-        mainAxisAlignment: MainAxisAlignment.spaceBetween,
-        children: [
-          Text(
-            label,
-            style: TextStyle(
-              fontSize: isTotal ? 18 : 16,
-              fontWeight: isTotal ? FontWeight.bold : FontWeight.normal,
-            ),
-          ),
-          Text(
-            amount,
-            style: TextStyle(
-              fontSize: isTotal ? 18 : 16,
-              fontWeight: isTotal ? FontWeight.bold : FontWeight.normal,
-            ),
-          ),
-        ],
-      ),
     );
   }
 }

@@ -1,8 +1,10 @@
 // lib/screens/orders_screen.dart
 import 'package:flutter/material.dart';
+import '../services/order_service.dart';
 import '../widgets/bottom_navigation.dart';
 import '../models/order.dart';
 import '../services/pdf_service.dart';
+import '../services/token_service.dart';
 
 class OrdersScreen extends StatefulWidget {
   const OrdersScreen({super.key});
@@ -12,7 +14,48 @@ class OrdersScreen extends StatefulWidget {
 }
 
 class _OrdersScreenState extends State<OrdersScreen> {
+  List<Order> _orders = [];
+  bool _isLoading = true;
   Map<String, String> pdfPaths = {};
+
+  @override
+  void initState() {
+    super.initState();
+    _loadOrders();
+  }
+
+  Future<void> _loadOrders() async {
+    try {
+      final token = await TokenService.getToken();
+      if (token == null) {
+        _redirectToLogin();
+        return;
+      }
+
+      final orders = await OrderService.getOrders(token);
+      if (!mounted) return;
+
+      setState(() {
+        _orders = orders;
+        _isLoading = false;
+      });
+    } catch (e) {
+      if (!mounted) return;
+      setState(() {
+        _isLoading = false;
+      });
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('Error cargando órdenes: ${e.toString()}'),
+          backgroundColor: Colors.red,
+        ),
+      );
+    }
+  }
+
+  void _redirectToLogin() {
+    Navigator.of(context).pushReplacementNamed('/login');
+  }
 
   Future<void> _generateInvoice(Order order) async {
     try {
@@ -22,13 +65,13 @@ class _OrdersScreenState extends State<OrdersScreen> {
       });
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Invoice saved to Documents')),
+        const SnackBar(content: Text('Factura guardada en Documentos')),
       );
     } catch (e) {
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
-          content: Text('Error generating invoice: $e'),
+          content: Text('Error generando factura: $e'),
           backgroundColor: Colors.red,
         ),
       );
@@ -39,14 +82,14 @@ class _OrdersScreenState extends State<OrdersScreen> {
     try {
       final filePath = pdfPaths[orderId];
       if (filePath == null) {
-        throw Exception('PDF not generated yet');
+        throw Exception('PDF no generado aún');
       }
       await PdfService.openPdfFile(filePath);
     } catch (e) {
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
-          content: Text('Error opening invoice: $e'),
+          content: Text('Error abriendo factura: $e'),
           backgroundColor: Colors.red,
         ),
       );
@@ -55,80 +98,132 @@ class _OrdersScreenState extends State<OrdersScreen> {
 
   @override
   Widget build(BuildContext context) {
-    // Demo orders - replace with actual data from your backend
-    final orders = [
-      Order(
-        id: '1234',
-        items: [OrderItem('MacBook Air', 999.0, 1)],
-        total: 999.0,
-        date: DateTime.now().subtract(const Duration(days: 1)),
-      ),
-      Order(
-        id: '1235',
-        items: [OrderItem('iPad Pro', 799.0, 1)],
-        total: 799.0,
-        date: DateTime.now().subtract(const Duration(days: 3)),
-      ),
-    ];
+    if (_isLoading) {
+      return const Scaffold(
+        body: Center(
+          child: CircularProgressIndicator(),
+        ),
+      );
+    }
 
     return Scaffold(
-      appBar: AppBar(title: const Text('My Orders')),
-      body: Padding(
-        padding: const EdgeInsets.all(16.0),
-        child: Column(
-          children: [
-            Expanded(
-              child: ListView.builder(
-                itemCount: orders.length,
-                itemBuilder: (context, index) {
-                  final order = orders[index];
-                  return Card(
-                    margin: const EdgeInsets.only(bottom: 16),
-                    child: ExpansionTile(
-                      title: Text('Order #${order.id}'),
-                      subtitle: Text(
-                        'Date: ${order.date.toString().substring(0, 16)}\n'
-                        'Total: \$${order.total}',
-                      ),
-                      trailing: Row(
-                        mainAxisSize: MainAxisSize.min,
-                        children: [
-                          IconButton(
-                            icon: const Icon(Icons.download),
-                            onPressed: () => _generateInvoice(order),
-                          ),
-                          if (pdfPaths.containsKey(order.id))
-                            IconButton(
-                              icon: const Icon(Icons.open_in_new),
-                              onPressed: () => _openInvoice(order.id),
+      appBar: AppBar(
+        title: const Text('Mis Órdenes'),
+        actions: [
+          IconButton(
+            icon: const Icon(Icons.refresh),
+            onPressed: _loadOrders,
+            tooltip: 'Actualizar órdenes',
+          ),
+        ],
+      ),
+      body: _orders.isEmpty
+          ? const Center(
+              child: Text('No tienes órdenes realizadas'),
+            )
+          : Padding(
+              padding: const EdgeInsets.all(16.0),
+              child: Column(
+                children: [
+                  Expanded(
+                    child: ListView.builder(
+                      itemCount: _orders.length,
+                      itemBuilder: (context, index) {
+                        final order = _orders[index];
+                        return Card(
+                          margin: const EdgeInsets.only(bottom: 16),
+                          child: ExpansionTile(
+                            title: Text('Orden #${order.id}'),
+                            subtitle: Text(
+                              'Fecha: ${order.date.toString().substring(0, 16)}\n'
+                              'Total: \$${order.total.toStringAsFixed(2)}',
                             ),
-                        ],
-                      ),
-                      children: [
-                        ListView.builder(
-                          shrinkWrap: true,
-                          physics: const NeverScrollableScrollPhysics(),
-                          itemCount: order.items.length,
-                          itemBuilder: (context, itemIndex) {
-                            final item = order.items[itemIndex];
-                            return ListTile(
-                              title: Text(item.name),
-                              subtitle: Text('Quantity: ${item.quantity}'),
-                              trailing: Text('\$${item.price}'),
-                            );
-                          },
-                        ),
-                      ],
+                            trailing: Row(
+                              mainAxisSize: MainAxisSize.min,
+                              children: [
+                                IconButton(
+                                  icon: const Icon(Icons.download),
+                                  onPressed: () => _generateInvoice(order),
+                                  tooltip: 'Generar factura',
+                                ),
+                                if (pdfPaths.containsKey(order.id))
+                                  IconButton(
+                                    icon: const Icon(Icons.open_in_new),
+                                    onPressed: () => _openInvoice(order.id),
+                                    tooltip: 'Abrir factura',
+                                  ),
+                              ],
+                            ),
+                            children: [
+                              ListView.builder(
+                                shrinkWrap: true,
+                                physics: const NeverScrollableScrollPhysics(),
+                                itemCount: order.items.length,
+                                itemBuilder: (context, itemIndex) {
+                                  final item = order.items[itemIndex];
+                                  return ListTile(
+                                    title: Text(item.name),
+                                    subtitle:
+                                        Text('Cantidad: ${item.quantity}'),
+                                    trailing: Column(
+                                      mainAxisAlignment:
+                                          MainAxisAlignment.center,
+                                      crossAxisAlignment:
+                                          CrossAxisAlignment.end,
+                                      children: [
+                                        Text(
+                                            '\$${item.price.toStringAsFixed(2)}'),
+                                        Text(
+                                          'Total: \$${(item.price * item.quantity).toStringAsFixed(2)}',
+                                          style: const TextStyle(
+                                            fontWeight: FontWeight.bold,
+                                          ),
+                                        ),
+                                      ],
+                                    ),
+                                  );
+                                },
+                              ),
+                              Padding(
+                                padding: const EdgeInsets.all(16.0),
+                                child: Row(
+                                  mainAxisAlignment: MainAxisAlignment.end,
+                                  children: [
+                                    Column(
+                                      crossAxisAlignment:
+                                          CrossAxisAlignment.end,
+                                      children: [
+                                        Text(
+                                          'Subtotal: \$${(order.total / 1.15).toStringAsFixed(2)}',
+                                        ),
+                                        const SizedBox(height: 4),
+                                        Text(
+                                          'IVA (15%): \$${(order.total - (order.total / 1.15)).toStringAsFixed(2)}',
+                                        ),
+                                        const SizedBox(height: 8),
+                                        Text(
+                                          'Total: \$${order.total.toStringAsFixed(2)}',
+                                          style: const TextStyle(
+                                            fontWeight: FontWeight.bold,
+                                            fontSize: 16,
+                                          ),
+                                        ),
+                                      ],
+                                    ),
+                                  ],
+                                ),
+                              )
+                            ],
+                          ),
+                        );
+                      },
                     ),
-                  );
-                },
+                  ),
+                  const SizedBox(height: 16),
+                  const BottomNavigation(currentIndex: 2),
+                ],
               ),
             ),
-            const SizedBox(height: 16),
-            const BottomNavigation(currentIndex: 2),
-          ],
-        ),
-      ),
     );
   }
 }

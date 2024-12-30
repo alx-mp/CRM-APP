@@ -25,4 +25,29 @@ class ProductService {
       throw Exception('Error fetching products: $e');
     }
   }
+
+  static Future<void> updateProductStock(
+    int productId,
+    int newStock,
+    String token,
+  ) async {
+    try {
+      final response = await http.patch(
+        Uri.parse('${Env.apiUrl}/productos/$productId'),
+        headers: {
+          'Authorization': 'Bearer $token',
+          'Content-Type': 'application/json',
+        },
+        body: json.encode({
+          'stock_disponible': newStock,
+        }),
+      );
+
+      if (response.statusCode != 200) {
+        throw Exception('Failed to update product stock');
+      }
+    } catch (e) {
+      throw Exception('Error updating product stock: $e');
+    }
+  }
 }
