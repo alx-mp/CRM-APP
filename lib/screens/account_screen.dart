@@ -80,7 +80,7 @@ class _AccountScreenState extends State<AccountScreen> {
                 child: Column(
                   children: [
                     const Text(
-                      'Profile',
+                      'Perfil',
                       style: TextStyle(
                         fontSize: 24,
                         fontWeight: FontWeight.bold,
@@ -126,7 +126,7 @@ class _AccountScreenState extends State<AccountScreen> {
                     const SizedBox(height: 32),
                     ListTile(
                       leading: const Icon(Icons.logout),
-                      title: const Text('Logout'),
+                      title: const Text('Cerrar Sesión'),
                       onTap: _handleLogout,
                     ),
                     const Spacer(),
