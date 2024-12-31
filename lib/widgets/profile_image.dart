@@ -73,18 +73,15 @@ class _ProfileImageState extends State<ProfileImage> {
 
         if (!mounted) return;
 
-        // Primero actualizamos la imagen si fue exitoso
         if (success) {
           await _loadProfileImage();
         }
 
-        // Luego desactivamos el estado de carga
         setState(() {
           _isLoading = false;
         });
         widget.onLoadingChanged?.call(false);
 
-        // Finalmente mostramos el mensaje
         if (!mounted) return;
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
@@ -95,12 +92,10 @@ class _ProfileImageState extends State<ProfileImage> {
           ),
         );
       } else {
-        // Usuario canceló la selección
         if (!mounted) return;
         widget.onLoadingChanged?.call(false);
       }
     } catch (e) {
-      //print('Error picking/uploading image: $e');
       if (!mounted) return;
       setState(() {
         _isLoading = false;
@@ -124,7 +119,6 @@ class _ProfileImageState extends State<ProfileImage> {
         final imageBytes = base64Decode(cleanBase64);
         return MemoryImage(imageBytes);
       } catch (e) {
-        //print('Error decoding image: $e');
         return null;
       }
     }
@@ -137,17 +131,42 @@ class _ProfileImageState extends State<ProfileImage> {
       onTap: widget.onTap == null
           ? null
           : (_isLoading ? null : _pickAndUploadImage),
-      child: CircleAvatar(
-        radius: widget.radius,
-        backgroundColor: Colors.blue,
-        backgroundImage: _getImageProvider(),
-        child: _getImageProvider() == null
-            ? Icon(
-                Icons.person,
-                size: widget.radius * 1.2,
-                color: Colors.white,
-              )
-            : null,
+      child: Stack(
+        alignment: Alignment.bottomCenter,
+        children: [
+          CircleAvatar(
+            radius: widget.radius,
+            backgroundColor: Colors.blue,
+            backgroundImage: _getImageProvider(),
+            child: _getImageProvider() == null
+                ? Icon(
+                    Icons.person,
+                    size: widget.radius * 1.2,
+                    color: Colors.white,
+                  )
+                : null,
+          ),
+          if (widget.onTap != null)
+            Positioned(
+              bottom: 0,
+              child: Container(
+                height: widget.radius * 0.7,
+                width: widget.radius * 2,
+                decoration: BoxDecoration(
+                  color: Colors.black54,
+                  borderRadius: BorderRadius.only(
+                    bottomLeft: Radius.circular(widget.radius),
+                    bottomRight: Radius.circular(widget.radius),
+                  ),
+                ),
+                child: Icon(
+                  Icons.edit,
+                  color: Colors.white,
+                  size: widget.radius * 0.5,
+                ),
+              ),
+            ),
+        ],
       ),
     );
   }
