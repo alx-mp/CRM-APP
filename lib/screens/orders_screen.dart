@@ -57,11 +57,6 @@ class _OrdersScreenState extends State<OrdersScreen> {
     Navigator.of(context).pushReplacementNamed('/login');
   }
 
-  Future<bool> _onWillPop() async {
-    Navigator.of(context).pushReplacementNamed('/home');
-    return false;
-  }
-
   Future<void> _generateInvoice(Order order) async {
     try {
       final filePath = await PdfService.generateInvoice(order, context);
@@ -102,16 +97,31 @@ class _OrdersScreenState extends State<OrdersScreen> {
   }
 
   @override
+  @override
   Widget build(BuildContext context) {
-    return WillPopScope(
-      onWillPop: _onWillPop,
+    return PopScope(
+      canPop: false,
+      onPopInvokedWithResult: (bool didPop, dynamic result) async {
+        if (didPop) return;
+
+        try {
+          await Navigator.of(context).pushReplacementNamed('/home');
+        } catch (e) {
+          //print('Error durante la navegación: $e');
+        }
+      },
       child: Scaffold(
         appBar: AppBar(
           title: const Text('Mis Órdenes'),
           leading: IconButton(
             icon: const Icon(Icons.arrow_back),
-            onPressed: () =>
-                Navigator.of(context).pushReplacementNamed('/home'),
+            onPressed: () async {
+              try {
+                await Navigator.of(context).pushReplacementNamed('/home');
+              } catch (e) {
+                //print('Error durante la navegación: $e');
+              }
+            },
           ),
           actions: [
             IconButton(

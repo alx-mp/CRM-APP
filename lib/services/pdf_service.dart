@@ -14,8 +14,9 @@ import 'token_service.dart';
 class PdfService {
   static double _parseNumber(dynamic value) {
     if (value is num) return value.toDouble();
-    if (value is String)
+    if (value is String) {
       return double.parse(value.replaceAll(RegExp(r'[^\d.]'), ''));
+    }
     return 0.0;
   }
 
@@ -155,13 +156,11 @@ class PdfService {
         3: const pw.FlexColumnWidth(1.5),
         4: const pw.FlexColumnWidth(1.5),
         5: const pw.FlexColumnWidth(1.5),
-        6: const pw.FlexColumnWidth(1.5),
       },
       children: [
         pw.TableRow(
           decoration: pw.BoxDecoration(color: PdfColors.blue100),
           children: [
-            _buildTableHeader('Cod.'),
             _buildTableHeader('Producto'),
             _buildTableHeader('Cant.'),
             _buildTableHeader('P. Unit'),
@@ -179,8 +178,6 @@ class PdfService {
 
           return pw.TableRow(
             children: [
-              _buildTableCell(item['producto']['producto_id'].toString(),
-                  alignment: pw.TextAlign.center),
               _buildTableCell(item['producto']['nombre']),
               _buildTableCell(cantidad.toStringAsFixed(0),
                   alignment: pw.TextAlign.right),

@@ -1,4 +1,3 @@
-// lib/screens/login_screen.dart
 import 'package:flutter/material.dart';
 import '../screens/register_screen.dart';
 import '../screens/home_screen.dart';
@@ -49,7 +48,6 @@ class _LoginScreenState extends State<LoginScreen> {
     });
 
     try {
-      // Guardar el contexto antes de las operaciones asíncronas
       final navigator = Navigator.of(context);
 
       await AuthService.login(
@@ -67,7 +65,6 @@ class _LoginScreenState extends State<LoginScreen> {
       _emailController.clear();
       _passwordController.clear();
 
-      // Usar las referencias guardadas
       navigator.pushAndRemoveUntil(
         MaterialPageRoute(builder: (_) => const HomeScreen()),
         (route) => false,
@@ -93,37 +90,50 @@ class _LoginScreenState extends State<LoginScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final screenSize = MediaQuery.of(context).size;
+    final isKeyboardOpen = MediaQuery.of(context).viewInsets.bottom > 0;
+    final orientation = MediaQuery.of(context).orientation;
+
     return Scaffold(
       body: SafeArea(
         child: LayoutBuilder(
           builder: (context, constraints) {
             return SingleChildScrollView(
               keyboardDismissBehavior: ScrollViewKeyboardDismissBehavior.onDrag,
-              child: ConstrainedBox(
+              child: Container(
                 constraints: BoxConstraints(
                   minHeight: constraints.maxHeight,
                 ),
-                child: IntrinsicHeight(
-                  child: Padding(
-                    padding: const EdgeInsets.fromLTRB(20.0, 20.0, 20.0, 20.0),
+                padding: const EdgeInsets.symmetric(horizontal: 20.0),
+                child: Center(
+                  child: Container(
+                    constraints: const BoxConstraints(maxWidth: 450),
                     child: Form(
                       key: _formKey,
                       autovalidateMode: _autoValidate
                           ? AutovalidateMode.onUserInteraction
                           : AutovalidateMode.disabled,
                       child: Column(
-                        mainAxisSize: MainAxisSize.min,
+                        mainAxisAlignment: MainAxisAlignment.center,
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
-                          const Align(
-                            alignment: Alignment.center,
-                            child: Image(
-                              image: AssetImage('assets/logo.png'),
-                              height: 120,
-                              width: 120,
+                          if (!isKeyboardOpen ||
+                              orientation == Orientation.landscape) ...[
+                            const SizedBox(height: 20),
+                            Center(
+                              child: Image(
+                                image: const AssetImage('assets/logo.png'),
+                                height: orientation == Orientation.landscape
+                                    ? screenSize.height * 0.15
+                                    : screenSize.height * 0.12,
+                                width: orientation == Orientation.landscape
+                                    ? screenSize.height * 0.15
+                                    : screenSize.height * 0.12,
+                                fit: BoxFit.contain,
+                              ),
                             ),
-                          ),
-                          const SizedBox(height: 24),
+                          ],
+                          const SizedBox(height: 20),
                           const Center(
                             child: Text(
                               'BIENVENIDO A MSTORE',
@@ -133,15 +143,35 @@ class _LoginScreenState extends State<LoginScreen> {
                               ),
                             ),
                           ),
-                          const SizedBox(height: 40),
+                          const SizedBox(height: 20),
                           const Text('Email', style: TextStyle(fontSize: 16)),
                           const SizedBox(height: 8),
                           TextFormField(
                             controller: _emailController,
-                            decoration: const InputDecoration(
+                            style: const TextStyle(color: Colors.black),
+                            decoration: InputDecoration(
                               hintText: 'Ingresa el correo electrónico',
+                              hintStyle: TextStyle(color: Colors.grey[500]),
+                              border: InputBorder.none,
+                              filled: true,
+                              fillColor: Colors.grey[100],
+                              contentPadding: const EdgeInsets.symmetric(
+                                horizontal: 16,
+                                vertical: 16,
+                              ),
+                              focusedBorder: OutlineInputBorder(
+                                borderSide:
+                                    BorderSide(color: Colors.blue[700]!),
+                                borderRadius: BorderRadius.circular(10),
+                              ),
+                              enabledBorder: OutlineInputBorder(
+                                borderSide: BorderSide.none,
+                                borderRadius: BorderRadius.circular(10),
+                              ),
                             ),
+                            cursorColor: Colors.blue[700],
                             keyboardType: TextInputType.emailAddress,
+                            textInputAction: TextInputAction.next,
                             enabled: !_isLoading,
                             validator: (value) {
                               if (value == null || value.isEmpty) {
@@ -160,10 +190,29 @@ class _LoginScreenState extends State<LoginScreen> {
                           const SizedBox(height: 8),
                           TextFormField(
                             controller: _passwordController,
+                            style: const TextStyle(color: Colors.black),
                             obscureText: !_isPasswordVisible,
                             enabled: !_isLoading,
+                            cursorColor: Colors.blue[700],
                             decoration: InputDecoration(
                               hintText: 'Ingresa la contraseña',
+                              hintStyle: TextStyle(color: Colors.grey[500]),
+                              border: InputBorder.none,
+                              filled: true,
+                              fillColor: Colors.grey[100],
+                              contentPadding: const EdgeInsets.symmetric(
+                                horizontal: 16,
+                                vertical: 16,
+                              ),
+                              focusedBorder: OutlineInputBorder(
+                                borderSide:
+                                    BorderSide(color: Colors.blue[700]!),
+                                borderRadius: BorderRadius.circular(10),
+                              ),
+                              enabledBorder: OutlineInputBorder(
+                                borderSide: BorderSide.none,
+                                borderRadius: BorderRadius.circular(10),
+                              ),
                               suffixIcon: IconButton(
                                 icon: Icon(
                                   _isPasswordVisible
@@ -181,6 +230,10 @@ class _LoginScreenState extends State<LoginScreen> {
                                       },
                               ),
                             ),
+                            textInputAction: TextInputAction.done,
+                            onFieldSubmitted: (_) {
+                              if (!_isLoading) _handleLogin();
+                            },
                             validator: (value) {
                               if (value == null || value.isEmpty) {
                                 return 'Por favor ingresa tu contraseña';
@@ -189,9 +242,30 @@ class _LoginScreenState extends State<LoginScreen> {
                             },
                           ),
                           const SizedBox(height: 24),
-                          SizedBox(
+                          Container(
                             width: double.infinity,
+                            decoration: BoxDecoration(
+                              borderRadius: BorderRadius.circular(10),
+                              gradient: LinearGradient(
+                                colors: [
+                                  Colors.blue[700]!,
+                                  Colors.blue[900]!,
+                                ],
+                                begin: Alignment.centerLeft,
+                                end: Alignment.centerRight,
+                              ),
+                            ),
                             child: ElevatedButton(
+                              style: ElevatedButton.styleFrom(
+                                foregroundColor: Colors.white,
+                                backgroundColor: Colors.transparent,
+                                shadowColor: Colors.transparent,
+                                padding:
+                                    const EdgeInsets.symmetric(vertical: 16),
+                                shape: RoundedRectangleBorder(
+                                  borderRadius: BorderRadius.circular(10),
+                                ),
+                              ),
                               onPressed: _isLoading ? null : _handleLogin,
                               child: _isLoading
                                   ? const SizedBox(
@@ -205,7 +279,13 @@ class _LoginScreenState extends State<LoginScreen> {
                                         ),
                                       ),
                                     )
-                                  : const Text('Iniciar Sesión'),
+                                  : const Text(
+                                      'Iniciar Sesión',
+                                      style: TextStyle(
+                                        fontSize: 16,
+                                        fontWeight: FontWeight.bold,
+                                      ),
+                                    ),
                             ),
                           ),
                           const SizedBox(height: 20),
@@ -214,9 +294,19 @@ class _LoginScreenState extends State<LoginScreen> {
                             children: [
                               Text(
                                 "¿No tienes cuenta? ",
-                                style: TextStyle(color: Colors.grey[400]),
+                                style: TextStyle(
+                                  color: Colors.grey[400],
+                                  fontSize: 16,
+                                ),
                               ),
                               TextButton(
+                                style: TextButton.styleFrom(
+                                  foregroundColor: Colors.blue[700],
+                                  textStyle: const TextStyle(
+                                    fontSize: 16,
+                                    fontWeight: FontWeight.bold,
+                                  ),
+                                ),
                                 onPressed: _isLoading
                                     ? null
                                     : () async {
@@ -237,6 +327,10 @@ class _LoginScreenState extends State<LoginScreen> {
                               ),
                             ],
                           ),
+                          SizedBox(
+                              height: orientation == Orientation.landscape
+                                  ? 20
+                                  : 0),
                         ],
                       ),
                     ),

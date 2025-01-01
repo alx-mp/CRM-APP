@@ -15,11 +15,6 @@ class _CartScreenState extends State<CartScreen> {
   final Map<int, bool> _hasShownStockWarning = {};
   bool _isProcessingCheckout = false;
 
-  Future<bool> _onWillPop() async {
-    Navigator.of(context).pushReplacementNamed('/home');
-    return false;
-  }
-
   void _showStockWarning(BuildContext context, int productId, int maxStock) {
     if (!_hasShownStockWarning[productId]!) {
       ScaffoldMessenger.of(context).showSnackBar(
@@ -36,15 +31,29 @@ class _CartScreenState extends State<CartScreen> {
 
   @override
   Widget build(BuildContext context) {
-    return WillPopScope(
-      onWillPop: _onWillPop,
+    return PopScope(
+      canPop: false,
+      onPopInvokedWithResult: (bool didPop, dynamic result) async {
+        if (didPop) return;
+
+        try {
+          await Navigator.of(context).pushReplacementNamed('/home');
+        } catch (e) {
+          //print('Error durante la navegación: $e');
+        }
+      },
       child: Scaffold(
         appBar: AppBar(
           title: const Text('Carrito de Compras'),
           leading: IconButton(
             icon: const Icon(Icons.arrow_back),
-            onPressed: () =>
-                Navigator.of(context).pushReplacementNamed('/home'),
+            onPressed: () async {
+              try {
+                await Navigator.of(context).pushReplacementNamed('/home');
+              } catch (e) {
+                // print('Error durante la navegación: $e');
+              }
+            },
           ),
         ),
         body: SafeArea(
@@ -154,8 +163,9 @@ class _CartScreenState extends State<CartScreen> {
                                                                 .id] = false;
                                                       });
                                                     } catch (e) {
-                                                      if (!context.mounted)
+                                                      if (!context.mounted) {
                                                         return;
+                                                      }
                                                       ScaffoldMessenger.of(
                                                               context)
                                                           .showSnackBar(
@@ -203,8 +213,9 @@ class _CartScreenState extends State<CartScreen> {
                                                                 .id] = false;
                                                       });
                                                     } catch (e) {
-                                                      if (!context.mounted)
+                                                      if (!context.mounted) {
                                                         return;
+                                                      }
                                                       ScaffoldMessenger.of(
                                                               context)
                                                           .showSnackBar(
