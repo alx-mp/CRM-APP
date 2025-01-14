@@ -32,7 +32,7 @@ Future<void> main() async {
 
 class MyApp extends StatelessWidget {
   const MyApp({super.key});
-
+  console.log('HOLA MAJO')
   @override
   Widget build(BuildContext context) {
     return MaterialApp(
